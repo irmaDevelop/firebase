@@ -11,6 +11,13 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
+import com.facebook.AccessToken;
+import com.facebook.CallbackManager;
+import com.facebook.FacebookCallback;
+import com.facebook.FacebookException;
+import com.facebook.FacebookSdk;
+import com.facebook.login.LoginResult;
+import com.facebook.login.widget.LoginButton;
 import com.google.android.gms.auth.api.Auth;
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
 import com.google.android.gms.auth.api.signin.GoogleSignInResult;
@@ -21,10 +28,14 @@ import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.AuthCredential;
 import com.google.firebase.auth.AuthResult;
+import com.google.firebase.auth.FacebookAuthCredential;
+import com.google.firebase.auth.FacebookAuthProvider;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.GoogleAuthCredential;
 import com.google.firebase.auth.GoogleAuthProvider;
+
+import java.util.Arrays;
 
 public class MainActivity extends AppCompatActivity implements GoogleApiClient.OnConnectionFailedListener{
 
@@ -33,10 +44,12 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
     private FirebaseAuth firebaseAuth;
     private FirebaseAuth.AuthStateListener authStateListener;
     private GoogleApiClient googleApiClient;
+    private CallbackManager callbackManager; //viene de facebook library
 
     private Button btnCreateAccount;
     private Button btnSignIn;
     private SignInButton btnSignInGoogle;
+    private LoginButton btnSignInFacebook;
 
     private EditText edtEmail;
     private EditText edtPassword;
@@ -46,9 +59,13 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        FacebookSdk.sdkInitialize(getApplicationContext()); //inicializa el sdk de facebook
+        callbackManager = CallbackManager.Factory.create(); //inicializa el callback, aqui capturamos cuando el usuario se logueo correctamente
+
         btnCreateAccount = (Button) findViewById(R.id.btnCreateAccount);
         btnSignIn        = (Button) findViewById(R.id.btnSignIn);
         btnSignInGoogle  = (SignInButton) findViewById(R.id.btnSignInGoogle);
+        btnSignInFacebook = (LoginButton) findViewById(R.id.btnSignInFacebook);
 
         edtEmail         = (EditText) findViewById(R.id.edtEmail);
         edtPassword      = (EditText) findViewById(R.id.edtPassword);
@@ -74,6 +91,29 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
             public void onClick(View view) {
                 Intent intent = Auth.GoogleSignInApi.getSignInIntent(googleApiClient);
                 startActivityForResult(intent, SIGN_IN_GOOGLE_CODE);
+            }
+        });
+
+        btnSignInFacebook.setReadPermissions(Arrays.asList("email")); //que queremos dar acceso respecto de la cuenta.
+        btnSignInFacebook.registerCallback(callbackManager, new FacebookCallback<LoginResult>() {
+            @Override
+            public void onSuccess(LoginResult loginResult) {
+                //lo que sucede cuando alguien hace login
+                Log.w(TAG, "Facebook Login Success Token: " + loginResult.getAccessToken().getToken());
+                //dar de alta la cuenta en el dashboard de firebase
+                signInFacebookFirebase(loginResult.getAccessToken());
+
+            }
+
+            @Override
+            public void onCancel() {
+                Log.w(TAG, "Facebook canceled");
+            }
+
+            @Override
+            public void onError(FacebookException error) {
+                Log.w(TAG, "Facebook Error");
+                error.printStackTrace();
             }
         });
     }
@@ -156,6 +196,24 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
         }
     }
 
+
+    private void signInFacebookFirebase(AccessToken accessToken){
+        AuthCredential authCredential = FacebookAuthProvider.getCredential(accessToken.getToken());
+        firebaseAuth.signInWithCredential(authCredential).addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
+            @Override
+            public void onComplete(@NonNull Task<AuthResult> task) {
+                if(task.isSuccessful()){
+                    Toast.makeText(MainActivity.this, "Facebook Authentication Success", Toast.LENGTH_SHORT).show();
+                    Intent i = new Intent(MainActivity.this, WelcomeActivity.class);
+                    startActivity(i);
+                    finish();
+                }else {
+                    Toast.makeText(MainActivity.this, "Facebook Authentication Unsuccess", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+    }
+
     @Override
     protected void onStart() {
         super.onStart();
@@ -177,6 +235,10 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
             //en realdad en esta linea de codico se esta haciendo el sign in
             GoogleSignInResult googleSignInResult = Auth.GoogleSignInApi.getSignInResultFromIntent(data);
             signInGoogleFirebase(googleSignInResult);
+        }else{
+            //cada vez que alguien seleccione la cuenta de facebook se llamaraá a esta linea de codigo
+            callbackManager.onActivityResult(requestCode, resultCode, data);
+
         }
     }
 

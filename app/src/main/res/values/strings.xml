@@ -6,4 +6,7 @@
     <string name="create_signin_button">Sign In</string>
     <string name="welcome_to_platzi">Welcome to PLATZI</string>
     <string name="signout_button">Sign Out</string>
+    <string name="facebook_app_id">575789632848562</string>
+    <string name="fb_login_protocol_scheme">fb575789632848562</string>
+
 </resources>

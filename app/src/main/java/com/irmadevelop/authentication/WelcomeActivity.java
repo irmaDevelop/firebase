@@ -11,6 +11,7 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.facebook.login.LoginManager;
 import com.google.android.gms.auth.api.Auth;
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
 import com.google.android.gms.common.ConnectionResult;
@@ -57,22 +58,32 @@ public class WelcomeActivity extends AppCompatActivity implements GoogleApiClien
 
     private void signOut(){
         firebaseAuth.signOut();
-        Auth.GoogleSignInApi.signOut(googleApiClient).setResultCallback(new ResultCallback<Status>() {
-            @Override
-            public void onResult(@NonNull Status status) {
-                if (status.isSuccess()){
-                    //aqui se finaliza la ejecucion de la presente actividad, y se manda ejecuta el main
-                    //que es la actividad inicial.
-                    Intent i = new Intent(WelcomeActivity.this , MainActivity.class);
-                    startActivity(i);
-                    finish();
+
+        if (Auth.GoogleSignInApi != null){
+
+            Auth.GoogleSignInApi.signOut(googleApiClient).setResultCallback(new ResultCallback<Status>() {
+                @Override
+                public void onResult(@NonNull Status status) {
+                    if (status.isSuccess()){
+                        //aqui se finaliza la ejecucion de la presente actividad, y se manda ejecuta el main
+                        //que es la actividad inicial.
+                        Intent i = new Intent(WelcomeActivity.this , MainActivity.class);
+                        startActivity(i);
+                        finish();
+                    }
+                    else{
+                        //No salir permanecer, quedarse y mostrar un mensaje
+                        Toast.makeText(WelcomeActivity.this, "Error in Google Sign Out", Toast.LENGTH_SHORT).show();
+                    }
                 }
-                else{
-                    //No salir permanecer, quedarse y mostrar un mensaje
-                    Toast.makeText(WelcomeActivity.this, "Error in Google Sign Out", Toast.LENGTH_SHORT).show();
-                }
-            }
-        });
+            });
+        }
+
+        if (LoginManager.getInstance() !=null){
+            LoginManager.getInstance().logOut();
+        }
+
+
     }
 
     private void inicialize(){
